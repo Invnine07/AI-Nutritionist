@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 专属健康营养师 - 建档</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* 引入优雅的无衬线字体 */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #fafafa; }
+    </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-4">
+
+    <!-- 核心卡片：纯白背景，极细的灰色边框，轻微阴影 -->
+    <div class="bg-white w-full max-w-lg p-10 md:p-12 rounded-2xl shadow-[0_2px_20px_rgba(0,0,0,0.04)] border border-gray-100">
+        
+        <!-- 标题区 -->
+        <div class="mb-10 text-center">
+            <!-- 极简黑白图标 -->
+            <div class="w-12 h-12 bg-black rounded-xl mx-auto flex items-center justify-center mb-6">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"></path></svg>
+            </div>
+            <h1 class="text-2xl font-semibold text-black tracking-tight">建立健康档案</h1>
+            <p class="text-sm text-gray-400 mt-2 font-light">针对慢病人群的精准营养分析系统</p>
+        </div>
+
+        <!-- 表单区 -->
+        <form id="registerForm" class="space-y-6">
+            <div class="grid grid-cols-2 gap-5">
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">身高 (cm)</label>
+                    <input type="number" id="height" required class="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:border-black focus:ring-1 focus:ring-black outline-none transition-all text-black" placeholder="例如 175">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-2 uppercase tracking-wider">体重 (kg)</label>
+                    <input type="number" id="weight" required class="w-full px-4 py-3 rounded-lg border border-gray-200 bg-gray-50 focus:bg-white focus:border-black focus:ring-1 focus:ring-black outline-none transition-all text-black" placeholder="例如 70">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-medium text-gray-500 mb-3 uppercase tracking-wider">重点关注疾病</label>
+                <div class="flex flex-wrap gap-3">
+                    <label class="cursor-pointer">
+                        <input type="checkbox" value="糖尿病" class="peer sr-only disease-checkbox">
+                        <!-- 选中时变成纯黑背景 -->
+                        <div class="px-5 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-black peer-checked:border-black peer-checked:text-white transition-all duration-200">糖尿病</div>
+                    </label>
+                    <label class="cursor-pointer">
+                        <input type="checkbox" value="高血压" class="peer sr-only disease-checkbox">
+                        <div class="px-5 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-600 peer-checked:bg-black peer-checked:border-black peer-checked:text-white transition-all duration-200">高血压</div>
+                    </label>
+                </div>
+            </div>
+
+            <!-- 纯黑按钮 -->
+            <button type="submit" class="w-full mt-8 bg-black hover:bg-gray-800 text-white font-medium py-3.5 rounded-lg transition-all active:scale-[0.98]">
+                生成档案并进入
+            </button>
+        </form>
+    </div>
+
+    <script>
+        document.getElementById('registerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const height = document.getElementById('height').value;
+            const weight = document.getElementById('weight').value;
+            const diseases = [];
+            document.querySelectorAll('.disease-checkbox:checked').forEach(cb => { diseases.push(cb.value); });
+
+            const userData = {
+                height: height,
+                weight: weight,
+                diseases: diseases.length > 0 ? diseases.join('、') : '无'
+            };
+
+            localStorage.setItem('userHealthData', JSON.stringify(userData));
+            window.location.href = 'chat.html';
+        });
+    </script>
+</body>
+</html>
