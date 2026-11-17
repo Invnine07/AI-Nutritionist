@@ -13,7 +13,7 @@
     </style>
 </head>
 <body class="bg-white h-screen flex overflow-hidden text-gray-900">
-
+<input type="file" id="imageInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
     <!-- 左侧：用户画像面板 -->
     <aside class="w-72 bg-[#fafafa] border-r border-gray-100 flex flex-col hidden md:flex">
         <div class="p-8 border-b border-gray-100">
@@ -121,11 +121,59 @@
             }
         }
 
+                // 触发文件选择框
         function simulateImageUpload() {
-            appendMessage('user', '📷 [已上传图片：西红柿炒鸡蛋]');
-            setTimeout(() => {
-                appendMessage('ai', "识别成功。请选择大致分量，以便精确计算：<br><br> <button class='border border-gray-300 px-4 py-2 rounded-lg text-xs hover:border-black transition-colors'>半盘 (~150g)</button> <button class='ml-2 border border-gray-300 px-4 py-2 rounded-lg text-xs hover:border-black transition-colors'>整盘 (~300g)</button>");
-            }, 1500);
+            document.getElementById('imageInput').click();
+        }
+
+        // 处理选中的图片并发送给AI
+        async function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const base64Image = e.target.result;
+                // 1. 在屏幕上显示你发的图片
+                appendMessage('user', '<img src="' + base64Image + '" class="max-w-full rounded-lg max-h-48 object-cover" />');
+                
+                // 2. 显示 AI 思考中的提示
+                const thinkingId = 'thinking-' + Date.now();
+                const chatArea = document.getElementById('chatArea');
+                const msgDiv = document.createElement('div');
+                msgDiv.id = thinkingId;
+                msgDiv.className = 'flex items-start gap-4';
+                msgDiv.innerHTML = `
+                    <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs shrink-0">AI</div>
+                    <div class="border border-gray-100 bg-[#fafafa] p-5 rounded-2xl rounded-tl-sm text-gray-500 max-w-[80%] text-sm">正在分析图片内容，请稍候...</div>
+                `;
+                chatArea.appendChild(msgDiv);
+                chatArea.scrollTop = chatArea.scrollHeight;
+
+                // 3. 获取健康数据
+                const userHealthData = localStorage.getItem('userHealthData');
+                const userInfo = userHealthData ? JSON.parse(userHealthData).diseases : "无特殊疾病";
+
+                try {
+                    // 4. 发送给后端
+                    const response = await fetch('http://127.0.0.1:8000/api/chat', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            message: "请识别图片中的食物，并给出营养评估建议。",
+                            user_info: userInfo,
+                            image_base64: base64Image  // 把图片编码传过去
+                        })
+                    });
+                    const resData = await response.json();
+                    document.getElementById(thinkingId).remove(); // 删掉思考中
+                    appendMessage('ai', resData.reply); // 显示 AI 真实回复
+                } catch (error) {
+                    document.getElementById(thinkingId).remove();
+                    appendMessage('ai', "⚠️ 图片分析失败，请检查后端是否正常运行。");
+                }
+            };
+            reader.readAsDataURL(file);
         }
 
                 function appendMessage(role, text) {
