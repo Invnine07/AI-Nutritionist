@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI 营养师工作台</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>  
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
@@ -79,16 +80,45 @@
             }
         };
 
-        function sendMessage() {
+                async function sendMessage() {
             const input = document.getElementById('chatInput');
             const text = input.value.trim();
             if (!text) return;
+            
+            // 1. 显示你的消息
             appendMessage('user', text);
             input.value = '';
-            setTimeout(() => {
-                const diseases = JSON.parse(localStorage.getItem('userHealthData')).diseases;
-                appendMessage('ai', `【AI模拟】：收到。针对您的「${diseases}」情况，我正在计算该餐的升糖指数与钠含量。建议您保持清淡饮食。（待接入真实AI大模型）`);
-            }, 1000);
+
+            // 2. 获取你的健康数据，发给后端
+            const userHealthData = localStorage.getItem('userHealthData');
+            let userInfo = "无特殊疾病";
+            if (userHealthData) {
+                const data = JSON.parse(userHealthData);
+                userInfo = `身高${data.height}cm, 体重${data.weight}kg, 疾病: ${data.diseases}`;
+            }
+
+            try {
+                // 3. 向 Python 后端发起请求
+                const response = await fetch('http://127.0.0.1:8000/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        message: text,
+                        user_info: userInfo
+                    })
+                });
+
+                const resData = await response.json();
+                
+                // 4. 把真实的 AI 回复显示出来
+                appendMessage('ai', resData.reply);
+                
+            } catch (error) {
+                console.error("请求失败:", error);
+                appendMessage('ai', "⚠️ 连接不上后端服务器，请检查终端里的 Python 程序是否还在运行。");
+            }
         }
 
         function simulateImageUpload() {
@@ -98,7 +128,7 @@
             }, 1500);
         }
 
-        function appendMessage(role, text) {
+                function appendMessage(role, text) {
             const chatArea = document.getElementById('chatArea');
             const msgDiv = document.createElement('div');
             
@@ -112,10 +142,11 @@
                 `;
             } else {
                 msgDiv.className = 'flex items-start gap-4';
+                // 这里的 marked.parse(text) 负责把星号变成格式
                 msgDiv.innerHTML = `
                     <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs shrink-0">AI</div>
                     <div class="border border-gray-100 bg-[#fafafa] p-5 rounded-2xl rounded-tl-sm text-gray-700 max-w-[80%] text-sm leading-relaxed shadow-sm">
-                        ${text}
+                        ${marked.parse(text)}
                     </div>
                 `;
             }
