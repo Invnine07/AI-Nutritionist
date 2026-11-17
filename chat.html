@@ -63,14 +63,13 @@
     </main>
 
     <script>
-        window.onload = function() {
+               window.onload = function() {
             const storedData = localStorage.getItem('userHealthData');
             if (storedData) {
                 const data = JSON.parse(storedData);
                 const heightM = data.height / 100;
                 const bmi = (data.weight / (heightM * heightM)).toFixed(1);
                 
-                // 用黑白灰风格渲染数据
                 document.getElementById('userProfile').innerHTML = `
                     <div class="flex justify-between items-center border-b border-gray-100 pb-3"><span class="text-gray-400">身高</span> <span class="font-medium text-black">${data.height} cm</span></div>
                     <div class="flex justify-between items-center border-b border-gray-100 pb-3"><span class="text-gray-400">体重</span> <span class="font-medium text-black">${data.weight} kg</span></div>
@@ -80,16 +79,15 @@
             }
         };
 
-                async function sendMessage() {
+        // 发送文字消息
+        async function sendMessage() {
             const input = document.getElementById('chatInput');
             const text = input.value.trim();
             if (!text) return;
             
-            // 1. 显示你的消息
             appendMessage('user', text);
             input.value = '';
 
-            // 2. 获取你的健康数据，发给后端
             const userHealthData = localStorage.getItem('userHealthData');
             let userInfo = "无特殊疾病";
             if (userHealthData) {
@@ -98,85 +96,96 @@
             }
 
             try {
-                // 3. 向 Python 后端发起请求
                 const response = await fetch('http://127.0.0.1:8000/api/chat', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         message: text,
                         user_info: userInfo
                     })
                 });
-
                 const resData = await response.json();
-                
-                // 4. 把真实的 AI 回复显示出来
                 appendMessage('ai', resData.reply);
-                
             } catch (error) {
                 console.error("请求失败:", error);
                 appendMessage('ai', "⚠️ 连接不上后端服务器，请检查终端里的 Python 程序是否还在运行。");
             }
         }
 
-                // 触发文件选择框
+        // 触发文件选择
         function simulateImageUpload() {
             document.getElementById('imageInput').click();
         }
 
-        // 处理选中的图片并发送给AI
+        // 处理图片压缩并发送
         async function handleImageSelect(event) {
             const file = event.target.files[0];
             if (!file) return;
 
+            const previewUrl = URL.createObjectURL(file);
+            appendMessage('user', '<img src="' + previewUrl + '" class="max-w-full rounded-lg max-h-48 object-cover" />');
+
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const base64Image = e.target.result;
-                // 1. 在屏幕上显示你发的图片
-                appendMessage('user', '<img src="' + base64Image + '" class="max-w-full rounded-lg max-h-48 object-cover" />');
-                
-                // 2. 显示 AI 思考中的提示
-                const thinkingId = 'thinking-' + Date.now();
-                const chatArea = document.getElementById('chatArea');
-                const msgDiv = document.createElement('div');
-                msgDiv.id = thinkingId;
-                msgDiv.className = 'flex items-start gap-4';
-                msgDiv.innerHTML = `
-                    <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs shrink-0">AI</div>
-                    <div class="border border-gray-100 bg-[#fafafa] p-5 rounded-2xl rounded-tl-sm text-gray-500 max-w-[80%] text-sm">正在分析图片内容，请稍候...</div>
-                `;
-                chatArea.appendChild(msgDiv);
-                chatArea.scrollTop = chatArea.scrollHeight;
+                const img = new Image();
+                img.onload = async function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 800; 
+                    let width = img.width;
+                    let height = img.height;
+                    
+                    if (width > MAX_WIDTH) {
+                        height = Math.round((height * MAX_WIDTH) / width);
+                        width = MAX_WIDTH;
+                    }
+                    
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    
+                    const base64Image = canvas.toDataURL('image/jpeg', 0.7);
 
-                // 3. 获取健康数据
-                const userHealthData = localStorage.getItem('userHealthData');
-                const userInfo = userHealthData ? JSON.parse(userHealthData).diseases : "无特殊疾病";
+                    const thinkingId = 'thinking-' + Date.now();
+                    const chatArea = document.getElementById('chatArea');
+                    const msgDiv = document.createElement('div');
+                    msgDiv.id = thinkingId;
+                    msgDiv.className = 'flex items-start gap-4';
+                    msgDiv.innerHTML = `
+                        <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs shrink-0">AI</div>
+                        <div class="border border-gray-100 bg-[#fafafa] p-5 rounded-2xl rounded-tl-sm text-gray-500 max-w-[80%] text-sm">正在通过多模态模型分析图片，请稍候...</div>
+                    `;
+                    chatArea.appendChild(msgDiv);
+                    chatArea.scrollTop = chatArea.scrollHeight;
 
-                try {
-                    // 4. 发送给后端
-                    const response = await fetch('http://127.0.0.1:8000/api/chat', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            message: "请识别图片中的食物，并给出营养评估建议。",
-                            user_info: userInfo,
-                            image_base64: base64Image  // 把图片编码传过去
-                        })
-                    });
-                    const resData = await response.json();
-                    document.getElementById(thinkingId).remove(); // 删掉思考中
-                    appendMessage('ai', resData.reply); // 显示 AI 真实回复
-                } catch (error) {
-                    document.getElementById(thinkingId).remove();
-                    appendMessage('ai', "⚠️ 图片分析失败，请检查后端是否正常运行。");
-                }
+                    const userHealthData = localStorage.getItem('userHealthData');
+                    const userInfo = userHealthData ? JSON.parse(userHealthData).diseases : "无特殊疾病";
+
+                    try {
+                        const response = await fetch('http://127.0.0.1:8000/api/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: "请识别图片中的食物，并给出营养评估建议。",
+                                user_info: userInfo,
+                                image_base64: base64Image
+                            })
+                        });
+                        const resData = await response.json();
+                        document.getElementById(thinkingId).remove();
+                        appendMessage('ai', resData.reply);
+                    } catch (error) {
+                        document.getElementById(thinkingId).remove();
+                        appendMessage('ai', "⚠️ 图片分析失败，请检查后端是否正常运行。");
+                    }
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
 
-                function appendMessage(role, text) {
+        // 追加消息到界面
+        function appendMessage(role, text) {
             const chatArea = document.getElementById('chatArea');
             const msgDiv = document.createElement('div');
             
@@ -190,7 +199,6 @@
                 `;
             } else {
                 msgDiv.className = 'flex items-start gap-4';
-                // 这里的 marked.parse(text) 负责把星号变成格式
                 msgDiv.innerHTML = `
                     <div class="w-8 h-8 bg-black rounded-full flex items-center justify-center text-white text-xs shrink-0">AI</div>
                     <div class="border border-gray-100 bg-[#fafafa] p-5 rounded-2xl rounded-tl-sm text-gray-700 max-w-[80%] text-sm leading-relaxed shadow-sm">
